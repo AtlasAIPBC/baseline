@@ -47,22 +47,21 @@ def prepare_data(params):
     warnings.simplefilter('ignore', Image.DecompressionBombWarning)
 
     walkDirs = ['train', 'val', 'test']
-
-    executor = ProcessPoolExecutor(max_workers=params.num_workers)
+    executor = ProcessPoolExecutor(max_workers=params['num_workers'])
     futures = []
-    paramsDict = vars(params)
+    paramsDict = dict(params)
     keysToKeep = ['image_format', 'target_img_size', 'metadata_length', 'category_names']
     paramsDict = {keepKey: paramsDict[keepKey] for keepKey in keysToKeep}
     
     for currDir in walkDirs:
         isTrain = (currDir == 'train') or (currDir == 'val')
         if isTrain:
-            outDir = params.directories['train_data']
+            outDir = params['directories']['train_data']
         else:
-            outDir = params.directories['test_data']
+            outDir = params['directories']['test_data']
 
         print('Queuing sequences in: ' + currDir)
-        for root, dirs, files in tqdm(os.walk(os.path.join(params.directories['dataset'], currDir))):
+        for root, dirs, files in tqdm(os.walk(os.path.join(params['directories']['dataset'], currDir))):
             if len(files) > 0:
                 slashes = [i for i,ltr in enumerate(root) if ltr == '/']
                         
@@ -76,7 +75,7 @@ def prepare_data(params):
     [results.extend(future.result()) for future in tqdm(futures)]
     allTrainFeatures = [np.array(r[0]) for r in results if r[0] is not None]
     
-    metadataTrainSum = np.zeros(params.metadata_length)
+    metadataTrainSum = np.zeros(params['metadata_length'])
     for features in allTrainFeatures:
         metadataTrainSum += features
 
@@ -88,21 +87,21 @@ def prepare_data(params):
     executor.shutdown()
 
     metadataMean = metadataTrainSum / trainCount
-    metadataMax = np.zeros(params.metadata_length)
+    metadataMax = np.zeros(params['metadata_length'])
     for currFeat in allTrainFeatures:
         currFeat = currFeat - metadataMean
-        for i in range(params.metadata_length):
+        for i in range(params['metadata_length']):
             if abs(currFeat[i]) > metadataMax[i]:
                 metadataMax[i] = abs(currFeat[i])
-    for i in range(params.metadata_length):
+    for i in range(params['metadata_length']):
         if metadataMax[i] == 0:
             metadataMax[i] = 1.0
     metadataStats = {}
     metadataStats['metadata_mean'] = metadataMean.tolist()
     metadataStats['metadata_max'] = metadataMax.tolist()
-    json.dump(testData, open(params.files['test_struct'], 'w'))
-    json.dump(trainingData, open(params.files['training_struct'], 'w'))
-    json.dump(metadataStats, open(params.files['dataset_stats'], 'w'))
+    json.dump(testData, open(params['files']['test_struct'], 'w'))
+    json.dump(trainingData, open(params['files']['training_struct'], 'w'))
+    json.dump(metadataStats, open(params['files']['dataset_stats'], 'w'))
 
 def _process_file(file, slashes, root, isTrain, outDir, params):
     """
